@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AliveDx Value Calculator — Report</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 48rem; margin: 2rem auto; padding: 0 1.25rem; color: #1a1a1a; }
+    h1 { color: #0a3d7a; }
+    .driver { border: 1px solid #d9e3ee; border-radius: 8px; padding: 1rem 1.25rem; margin: 1rem 0; }
+    .muted { color: #5b6b7c; }
+    button { background: #0066ee; color: #fff; border: 0; border-radius: 999px; padding: .6rem 1.2rem; font-weight: 600; cursor: pointer; }
+    @media print { button { display: none; } }
+  </style>
+</head>
+<body>
+  <p class="muted">AliveDx · MosaiQ Value Calculator</p>
+  <div id="out">Loading report…</div>
+  <p><button onclick="window.print()">Print / save as PDF</button></p>
+  <script>
+    const id = new URLSearchParams(location.search).get("id");
+    const raw = id ? sessionStorage.getItem("vct-static-assessment:" + id) : null;
+    const el = document.getElementById("out");
+    if (!raw) {
+      el.innerHTML = "<p>This report is only available in the same browser tab that ran the calculation. Go back and unlock again, then download.</p>";
+    } else {
+      const row = JSON.parse(raw);
+      const r = row.result;
+      const lab = row.labName ? row.labName + ", consolidated" : "Your bench, consolidated";
+      const s = r.summary;
+      el.innerHTML = "<h1>" + lab + "</h1>"
+        + "<p class=muted>Patients / day: " + s.patientsPerDay
+        + " · Tube runs / day: " + s.tubeRunsPerDay
+        + " · Analysers: " + s.currentInstrumentCount + " → " + s.futureInstrumentCount
+        + " · Hands-on saved / day: " + s.dailyHandsOnSavedMin + " min</p>"
+        + r.drivers.map(d => "<div class=driver><strong>" + d.id + ". " + d.title
+          + "</strong><p>" + d.headline + "</p><p class=muted>" + d.caption + "</p></div>").join("");
+    }
+  </script>
+</body>
+</html>
