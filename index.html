@@ -1,0 +1,948 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AliveDx VCT calculator</title>
+<style>
+:root{--ink:#1b2430;--muted:#5b6775;--line:#d7dde5;--bg:#f6f8fb;--card:#fff;--accent:#1a5fb4;--ok:#1b7f4e;--bad:#b42318}
+body{margin:0;font:15px/1.45 Segoe UI,Calibri,Helvetica,Arial,sans-serif;color:var(--ink);background:var(--bg)}
+header{background:#fff;border-bottom:1px solid var(--line);padding:16px 28px}
+header h1{margin:0;font-size:20px;font-weight:650}header p{margin:4px 0 0;color:var(--muted);font-size:13px}
+main{max-width:1100px;margin:0 auto;padding:22px 28px 48px}h2{font-size:16px;margin:22px 0 10px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:16px 18px;margin-bottom:14px}
+.presets{display:flex;gap:8px;flex-wrap:wrap}
+.btn,button,.presets a{display:inline-block;background:var(--accent);color:#fff;border:0;border-radius:5px;padding:7px 12px;text-decoration:none;font-size:13px;cursor:pointer}
+.btn.sec,.presets a.sec{background:#fff;color:var(--accent);border:1px solid var(--accent)}
+label{display:block;font-size:12px;color:var(--muted);margin-bottom:3px}
+input,select{width:100%;padding:6px 8px;border:1px solid var(--line);border-radius:4px;font:inherit;box-sizing:border-box}
+.grid,.g4,.g5,.g2{display:grid;gap:10px}.g4{grid-template-columns:repeat(4,1fr)}.g5{grid-template-columns:1.4fr 70px 80px 80px 1fr}.g2{grid-template-columns:1fr 1fr}
+table{width:100%;border-collapse:collapse;font-size:14px}th,td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--line)}
+th{color:var(--muted);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.03em}
+td.num{text-align:right;font-variant-numeric:tabular-nums}.ok{color:var(--ok);font-weight:600}.bad{color:var(--bad);font-weight:600}
+footer{color:var(--muted);font-size:12px;margin-top:20px}
+#results{display:none}
+@media (max-width:720px){.g4,.g5,.g2{grid-template-columns:1fr}}
+
+</style>
+</head>
+<body>
+<header>
+  <h1>AliveDx VCT calculator</h1>
+  <p>Advanced mode — Excel-faithful engine (integer-rounded golden scenarios)</p>
+</header>
+<main>
+  <div class="card"><strong>Golden presets</strong>
+    <div class="presets" style="margin-top:8px">
+      <a href="#" id="preset-inovie">Inovie</a>
+      <a href="#" id="preset-plymouth">Plymouth</a>
+      <a href="#" id="preset-peterborough">Peterborough</a>
+      <a href="#" id="preset-swansea">Swansea</a>
+      <a class="sec" href="#" id="preset-clear">Clear</a>
+    </div>
+  </div>
+
+  <form id="vct-form" action="#" onsubmit="return false;">
+    <input type="hidden" id="preset" name="preset" value="">
+    <div class="card">
+      <h2>Disease patient counts (per day)</h2>
+      <div class="g4">
+        <div><label>CTD</label><input id="p_CTD" name="p_CTD" type="number" min="0" step="1" required></div>
+        <div><label>CD</label><input id="p_CD" name="p_CD" type="number" min="0" step="1" required></div>
+        <div><label>VAS</label><input id="p_VAS" name="p_VAS" type="number" min="0" step="1" required></div>
+        <div><label>APS</label><input id="p_APS" name="p_APS" type="number" min="0" step="1" required></div>
+      </div>
+      <div style="max-width:160px;margin-top:10px">
+        <label>Annual growth %</label>
+        <input id="growth" name="growth" type="number" min="0" step="0.1" value="10">
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Current analysers (up to 4)</h2>
+      <div class="grid g5">
+        <div><label>Main analyser</label><select id="sys0" name="sys0"></select></div>
+        <div><label>Units</label><input id="units0" name="units0" type="number" min="0"></div>
+        <div><label>Reflex min</label><input id="reflex0" name="reflex0" type="number" min="0" step="1" value="0"></div>
+        <div><label>Reload min</label><input id="reload0" name="reload0" type="number" min="0" step="1" value="0"></div>
+        <div></div>
+      </div>
+      <div class="grid g5">
+        <div><label>Secondary analyser</label><select id="sys1" name="sys1"></select></div>
+        <div><label>Units</label><input id="units1" name="units1" type="number" min="0"></div>
+        <div><label>Reflex min</label><input id="reflex1" name="reflex1" type="number" min="0" step="1" value="0"></div>
+        <div><label>Reload min</label><input id="reload1" name="reload1" type="number" min="0" step="1" value="0"></div>
+        <div></div>
+      </div>
+      <div class="grid g5">
+        <div><label>Third analyser</label><select id="sys2" name="sys2"></select></div>
+        <div><label>Units</label><input id="units2" name="units2" type="number" min="0"></div>
+        <div><label>Reflex min</label><input id="reflex2" name="reflex2" type="number" min="0" step="1" value="0"></div>
+        <div><label>Reload min</label><input id="reload2" name="reload2" type="number" min="0" step="1" value="0"></div>
+        <div></div>
+      </div>
+      <div class="grid g5">
+        <div><label>Fourth analyser</label><select id="sys3" name="sys3"></select></div>
+        <div><label>Units</label><input id="units3" name="units3" type="number" min="0"></div>
+        <div><label>Reflex min</label><input id="reflex3" name="reflex3" type="number" min="0" step="1" value="0"></div>
+        <div><label>Reload min</label><input id="reload3" name="reload3" type="number" min="0" step="1" value="0"></div>
+        <div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Routing — exclusive marker assignment</h2>
+      <p style="color:var(--muted);margin-top:0;font-size:13px">A marker belongs to one analyser. Overrides move volume off the disease default.</p>
+      <div class="g4">
+        <div><label>CTD default analyser</label><select id="route_CTD" name="route_CTD"></select></div>
+        <div><label>CD default analyser</label><select id="route_CD" name="route_CD"></select></div>
+        <div><label>VAS default analyser</label><select id="route_VAS" name="route_VAS"></select></div>
+        <div><label>APS default analyser</label><select id="route_APS" name="route_APS"></select></div>
+      </div>
+      <div class="grid g2" style="margin-top:10px">
+        <div><label>CTD marker overrides (Marker=Analyser)</label><input id="ov_CTD" name="ov_CTD"></div>
+        <div><label>CD marker overrides (Marker=Analyser)</label><input id="ov_CD" name="ov_CD"></div>
+        <div><label>VAS marker overrides (Marker=Analyser)</label><input id="ov_VAS" name="ov_VAS"></div>
+        <div><label>APS marker overrides (Marker=Analyser)</label><input id="ov_APS" name="ov_APS"></div>
+      </div>
+      <details style="margin-top:10px;color:var(--muted);font-size:13px">
+        <summary>Marker names</summary>
+        <div id="marker-help"></div>
+      </details>
+    </div>
+    <button type="button" id="btn-calc">Calculate</button>
+  </form>
+
+  <div id="results"></div>
+  <footer>Defaults: 260 working days, 8 h shift, wait for QC = Yes, training 16 h (MosaiQ 4 h), inventory 1 h/week (MosaiQ 0.5 h). Reload minutes are captured but not applied to hands-on (Excel column-offset used by Swansea and Peterborough).</footer>
+</main>
+
+<script id="engine">
+var REF = {"source":"/workspace/vct-user/Masterfile_EXT_VCT Lite.xlsm","instruments":{"MosaiQ":{"name":"MosaiQ","manufacturer":"AliveDx","type":"Multiplex","utilization_basis":1,"shift_min":480,"ttfr":58,"process_sec":42,"process_min":0.7,"max_per_device":460.65934065934067,"batch_tubes":null,"batch_count":null,"wf_setup":10,"wf_qc":58,"wf_cal":0,"wf_maint":21.53846153846154,"op_startup":5,"op_qc":5,"op_cal":0,"op_maint":7.923076923076923,"op_analytical":5,"op_post":5,"max_daily_patients":460.65934065934067},"Phadia 250":{"name":"Phadia 250","manufacturer":"ThermoFisher","type":"Singleplex","utilization_basis":3,"shift_min":480,"ttfr":120,"process_sec":60,"process_min":1,"max_per_device":99.09230769230771,"batch_tubes":null,"batch_count":null,"wf_setup":30,"wf_qc":120,"wf_cal":15,"wf_maint":55.90769230769231,"op_startup":15,"op_qc":5,"op_cal":5,"op_maint":15.846153846153847,"op_analytical":10,"op_post":5,"max_daily_patients":null},"BioPlex 2200":{"name":"BioPlex 2200","manufacturer":"Bio Rad","type":"Multiplex","utilization_basis":2,"shift_min":480,"ttfr":42,"process_sec":36,"process_min":0.6,"max_per_device":468.6080586080586,"batch_tubes":null,"batch_count":null,"wf_setup":60,"wf_qc":42,"wf_cal":2.142857142857143,"wf_maint":22.692307692307693,"op_startup":20,"op_qc":5,"op_cal":0.7142857142857142,"op_maint":8.923076923076923,"op_analytical":15,"op_post":15,"max_daily_patients":null},"Aptiva":{"name":"Aptiva","manufacturer":"Werfen","type":"Multiplex","utilization_basis":2,"shift_min":480,"ttfr":60,"process_sec":60,"process_min":1,"max_per_device":265.46153846153845,"batch_tubes":null,"batch_count":null,"wf_setup":30,"wf_qc":60,"wf_cal":5,"wf_maint":29.53846153846154,"op_startup":10,"op_qc":5,"op_cal":5,"op_maint":18.76923076923077,"op_analytical":10,"op_post":15,"max_daily_patients":null},"Bio-Flash":{"name":"Bio-Flash","manufacturer":"Werfen","type":"Singleplex","utilization_basis":3,"shift_min":480,"ttfr":30,"process_sec":56,"process_min":0.9333333333333333,"max_per_device":351.9230769230769,"batch_tubes":null,"batch_count":null,"wf_setup":30,"wf_qc":30,"wf_cal":5,"wf_maint":26.53846153846154,"op_startup":10,"op_qc":5,"op_cal":5,"op_maint":16.76923076923077,"op_analytical":10,"op_post":15,"max_daily_patients":null},"Euroblotmaster":{"name":"Euroblotmaster","manufacturer":"Euroimmun","type":"Batch","utilization_basis":4,"shift_min":480,"ttfr":121,"process_sec":7260,"process_min":2.75,"max_per_device":4224,"batch_tubes":44,"batch_count":4,"wf_setup":35,"wf_qc":121,"wf_cal":5,"wf_maint":5,"op_startup":35,"op_qc":5,"op_cal":5,"op_maint":5,"op_analytical":15,"op_post":50,"max_daily_patients":null},"DS2":{"name":"DS2","manufacturer":"Dynex","type":"Batch","utilization_basis":4,"shift_min":480,"ttfr":107,"process_sec":13800,"process_min":1.2777777777777777,"max_per_device":60617.25752508362,"batch_tubes":180,"batch_count":2,"wf_setup":15,"wf_qc":0,"wf_cal":0,"wf_maint":19.692307692307693,"op_startup":10,"op_qc":5,"op_cal":5,"op_maint":14.307692307692308,"op_analytical":30,"op_post":10,"max_daily_patients":null}},"markers":{"CTD":{"names":["ANA Screen/ ENA screen (solid phase - first line test/screening - e.g. Bioplex, Immunocap Symphony)","CCP combined prescription with CTD","dsDNA","Scl70","Jo1","SS-B (La)","SS-A (Ro60)","CENP B","U1RNP","Sm","Sm/RNP","RNA polymerase III","Ribosomal P protein","DFS70","Chromatin/Nucleosome","TRIM21 (SS-A Ro52)"],"ratios":[1.0,0.25,1.0,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1]},"CD":{"names":["tTG IgA","tTG IgG","DGP IgA","DGP IgG","Total IgA (control)"],"ratios":[1.0,0.05,0.02,0.02,0.0]},"VAS":{"names":["MPO","PR3","Anti-GBM"],"ratios":[1.0,1.0,0.2]},"APS":{"names":["Anti-beta2 glicoprotein IgG","Anti-beta2 glicoprotein IgM","Anti-cardiolipin IgG","Anti-cardiolipin IgM"],"ratios":[1.0,1.0,1.0,1.0]}},"defaults":{"working_days_per_week":5,"bank_holidays":"Yes","working_days_per_year":260,"shift_hours":8,"shifts":1,"weeks_per_year":52,"wait_for_qc":"Yes","training_hours_current":16,"employees_current":1,"inventory_h_per_week_current":1,"training_hours_mosaiq":4,"employees_mosaiq":1,"inventory_h_per_week_mosaiq":0.5,"usage":"Full replacement with MosaiQ"},"name_map":{"Bioplex 2200":"BioPlex 2200","Bioplex":"BioPlex 2200","Phadia":"Phadia 250"},"notes":{"wait_qc":"All four golden scenarios wait for QC = Yes; row 49/50 already include QC.","bioPlex_maint":"BioPlex 2200 R_ELISA L64 uses L59 in the monthly term (Excel quirk); cached value stored."}};
+
+// AliveDx VCT Lite/Advanced engine — Excel-faithful calculate()
+// Ported exactly from engine.py
+
+function load_ref() {
+  return REF;
+}
+
+function excel_round(x, digits) {
+  if (digits === undefined) digits = 0;
+  if (x === null || x === undefined) return null;
+  var sign = x >= 0 ? 1 : -1;
+  var ax = Math.abs(Number(x));
+  var factor = Math.pow(10, digits);
+  ax = Math.floor(ax * factor + 0.5) / factor;
+  var out = sign * ax;
+  if (digits <= 0) return Math.trunc(out);
+  return out;
+}
+
+function excel_roundup(x, digits) {
+  if (digits === undefined) digits = 0;
+  if (x === null || x === undefined || x === 0) return 0;
+  var factor = Math.pow(10, digits);
+  if (digits === 0) {
+    return Math.trunc(Math.ceil(x * factor - 1e-12) / factor);
+  }
+  return Math.ceil(x * factor - 1e-12) / factor;
+}
+
+function canon_name(name, ref) {
+  if (!name) return name;
+  ref = ref || load_ref();
+  var map = ref["name_map"] || {};
+  return map.hasOwnProperty(name) ? map[name] : name;
+}
+
+function _inst(name, ref) {
+  ref = ref || load_ref();
+  var key = canon_name(name, ref);
+  if (!ref["instruments"].hasOwnProperty(key)) {
+    throw new Error("Unknown instrument: " + JSON.stringify(name) + " (mapped " + JSON.stringify(key) + ")");
+  }
+  return ref["instruments"][key];
+}
+
+function _short(marker) {
+  var m = marker.toLowerCase();
+  var aliases = [
+    ["ana", "ANA"],
+    ["ena", "ANA"],
+    ["ccp", "CCP"],
+    ["dsdna", "dsDNA"],
+    ["scl", "Scl70"],
+    ["jo1", "Jo1"],
+    ["jo-1", "Jo1"],
+    ["ss-b", "SS-B"],
+    ["la)", "SS-B"],
+    ["ro60", "SS-A"],
+    ["ss-a (ro60)", "SS-A"],
+    ["cenp", "CENP B"],
+    ["u1rnp", "U1RNP"],
+    ["sm/rnp", "Sm/RNP"],
+    ["sm", "Sm"],
+    ["rna pol", "RNA polymerase III"],
+    ["ribosom", "Ribosomal P"],
+    ["dfs70", "DFS70"],
+    ["chromatin", "Chromatin"],
+    ["trim21", "TRIM21"],
+    ["ttg iga", "tTG IgA"],
+    ["ttg igg", "tTG IgG"],
+    ["dgp iga", "DGP IgA"],
+    ["dgp igg", "DGP IgG"],
+    ["total iga", "Total IgA"],
+    ["mpo", "MPO"],
+    ["pr3", "PR3"],
+    ["gbm", "Anti-GBM"],
+    ["beta2", null],
+    ["cardio", null]
+  ];
+  if (m.indexOf("beta2") !== -1 || m.indexOf("glicoprotein") !== -1) {
+    return m.indexOf("igg") !== -1 ? "b2IgG" : "b2IgM";
+  }
+  if (m.indexOf("cardio") !== -1) {
+    return m.indexOf("igg") !== -1 ? "aCLIgG" : "aCLIgM";
+  }
+  for (var i = 0; i < aliases.length; i++) {
+    var needle = aliases[i][0];
+    var short = aliases[i][1];
+    if (m.indexOf(needle) !== -1 && short) {
+      if (needle === "sm" && (m.indexOf("sm/rnp") !== -1 || m.indexOf("rnp") !== -1)) {
+        continue;
+      }
+      if (needle === "ss-a" || needle === "ro60") {
+        if (m.indexOf("ro52") !== -1 || m.indexOf("trim") !== -1) {
+          continue;
+        }
+      }
+      return short;
+    }
+  }
+  return marker;
+}
+
+function resolve_marker_map(scenario, ref) {
+  ref = ref || load_ref();
+  var markers = ref["markers"];
+  var routing = Object.assign({}, scenario["routing"] || {});
+  var overrides = scenario["overrides"] || {};
+  var insts = scenario["instruments"] || [];
+  var deflt = null;
+  if (insts.length) {
+    deflt = canon_name(insts[0]["system"], ref);
+  }
+  var out = {};
+  var diseases = Object.keys(markers);
+  for (var di = 0; di < diseases.length; di++) {
+    var disease = diseases[di];
+    var spec = markers[disease];
+    var dest = routing.hasOwnProperty(disease) ? routing[disease] : deflt;
+    dest = dest ? canon_name(dest, ref) : null;
+    var ov = overrides[disease] || {};
+    var ov_canon = {};
+    var ovKeys = Object.keys(ov);
+    for (var oi = 0; oi < ovKeys.length; oi++) {
+      var k = ovKeys[oi];
+      var v = ov[k];
+      ov_canon[_short(k).toLowerCase()] = canon_name(v, ref);
+      ov_canon[k.toLowerCase()] = canon_name(v, ref);
+    }
+    var row = {};
+    for (var ni = 0; ni < spec["names"].length; ni++) {
+      var name = spec["names"][ni];
+      var s = _short(name).toLowerCase();
+      row[name] = ov_canon[s] || ov_canon[name.toLowerCase()] || dest;
+    }
+    out[disease] = row;
+  }
+  return out;
+}
+
+function _top_n_tubes(vols, n) {
+  if (!vols || !vols.length) {
+    return [];
+  }
+  var positive = [];
+  for (var i = 0; i < vols.length; i++) {
+    if (vols[i] > 0) positive.push(vols[i]);
+  }
+  if (!positive.length) {
+    var zeros = [];
+    for (var z = 0; z < vols.length; z++) zeros.push(0.0);
+    return zeros;
+  }
+  var ranked = positive.slice().sort(function (a, b) { return b - a; });
+  var threshold = ranked[Math.min(n, ranked.length) - 1];
+  var out = [];
+  var taken = 0;
+  for (var j = 0; j < vols.length; j++) {
+    var v = vols[j];
+    if (v > threshold) {
+      out.push(v);
+      taken += 1;
+    } else if (v === threshold && v > 0 && taken < n) {
+      out.push(v);
+      taken += 1;
+    } else {
+      out.push(0.0);
+    }
+  }
+  return out;
+}
+
+function calculate(scenario, ref) {
+  ref = ref || load_ref();
+  var defaults = ref["defaults"];
+  var markers = ref["markers"];
+  var mmap = resolve_marker_map(scenario, ref);
+
+  var patients = {
+    "CTD": Number((scenario["patients"] || {})["CTD"] || 0),
+    "CD": Number((scenario["patients"] || {})["CD"] || 0),
+    "VAS": Number((scenario["patients"] || {})["VAS"] || 0),
+    "APS": Number((scenario["patients"] || {})["APS"] || 0)
+  };
+  var total_patients = patients["CTD"] + patients["CD"] + patients["VAS"] + patients["APS"];
+
+  var raw_insts = [];
+  var specs = scenario["instruments"] || [];
+  for (var si = 0; si < specs.length; si++) {
+    var spec = specs[si];
+    var sys = canon_name(spec["system"], ref);
+    var units = parseInt(spec["units"] || 0, 10);
+    if (isNaN(units)) units = 0;
+    if (units <= 0 || !sys) continue;
+    raw_insts.push({
+      "system": sys,
+      "units": units,
+      "reflex_min": Number(spec["reflex_min"] || 0),
+      "reload_min": Number(spec["reload_min"] || 0),
+      "meta": _inst(sys, ref)
+    });
+  }
+
+  var diseases = Object.keys(markers);
+  for (var ri = 0; ri < raw_insts.length; ri++) {
+    var inst0 = raw_insts[ri];
+    inst0["tests"] = 0.0;
+    inst0["tubes"] = 0.0;
+    inst0["patients"] = 0.0;
+    inst0["panel_tests"] = {};
+    inst0["panel_order"] = {};
+    for (var d0 = 0; d0 < diseases.length; d0++) {
+      inst0["panel_tests"][diseases[d0]] = [];
+      inst0["panel_order"][diseases[d0]] = [];
+    }
+  }
+
+  var name_to_inst = {};
+  for (var ni2 = 0; ni2 < raw_insts.length; ni2++) {
+    name_to_inst[raw_insts[ni2]["system"]] = raw_insts[ni2];
+  }
+
+  var total_tests = 0.0;
+  for (var di = 0; di < diseases.length; di++) {
+    var disease = diseases[di];
+    var specm = markers[disease];
+    var npat = patients[disease];
+    for (var mi = 0; mi < specm["names"].length; mi++) {
+      var name = specm["names"][mi];
+      var ratio = specm["ratios"][mi];
+      var dest = mmap[disease][name];
+      var vol = npat * Number(ratio);
+      total_tests += vol;
+      if (dest && name_to_inst.hasOwnProperty(dest)) {
+        name_to_inst[dest]["tests"] += vol;
+        name_to_inst[dest]["panel_tests"][disease].push(vol);
+        name_to_inst[dest]["panel_order"][disease].push(name);
+      }
+    }
+  }
+
+  var multiplex_top2 = { "CD": true, "APS": true };
+  for (var dj = 0; dj < diseases.length; dj++) {
+    var disease2 = diseases[dj];
+    var panel_tubes = {};
+    for (var ii = 0; ii < raw_insts.length; ii++) {
+      var inst = raw_insts[ii];
+      var vols = inst["panel_tests"][disease2];
+      if (!vols.length) {
+        panel_tubes[inst["system"]] = 0.0;
+        continue;
+      }
+      var n = (inst["meta"]["type"] === "Multiplex" && multiplex_top2[disease2]) ? 2 : 1;
+      var tlist = _top_n_tubes(vols, n);
+      var tsum = 0;
+      for (var t = 0; t < tlist.length; t++) tsum += tlist[t];
+      panel_tubes[inst["system"]] = tsum;
+      inst["tubes"] += tsum;
+    }
+    var pvals = Object.keys(panel_tubes).map(function (k) { return panel_tubes[k]; });
+    var max_k = pvals.length ? Math.max.apply(null, pvals) : 0.0;
+    var awarded = false;
+    for (var ij = 0; ij < raw_insts.length; ij++) {
+      var inst2 = raw_insts[ij];
+      var k = panel_tubes.hasOwnProperty(inst2["system"]) ? panel_tubes[inst2["system"]] : 0.0;
+      if ((!awarded) && max_k > 0 && Math.abs(k - max_k) < 1e-9) {
+        inst2["patients"] += k;
+        awarded = true;
+      }
+    }
+  }
+
+  var total_tubes = 0;
+  for (var it = 0; it < raw_insts.length; it++) total_tubes += raw_insts[it]["tubes"];
+  var analysers_current = 0;
+  for (var iu = 0; iu < raw_insts.length; iu++) analysers_current += raw_insts[iu]["units"];
+
+  var mq = ref["instruments"]["MosaiQ"];
+  var mq_max = Number(mq["max_per_device"]);
+  var mq_units = mq_max ? excel_roundup(total_patients / mq_max, 0) : 1;
+  if (mq_units < 1 && total_patients > 0) mq_units = 1;
+
+  function native_capacity(inst) {
+    var m = inst["meta"];
+    if (m["type"] === "Batch") {
+      return Number(m["batch_count"]) * Number(m["batch_tubes"]) * inst["units"];
+    }
+    return Number(m["max_per_device"]) * inst["units"];
+  }
+
+  function utilization(inst) {
+    var cap = native_capacity(inst);
+    if (!cap) return 0.0;
+    var basis = inst["meta"]["utilization_basis"];
+    var load;
+    if (basis === 2 || basis === 4) {
+      load = inst["tubes"];
+    } else if (basis === 3) {
+      load = inst["tests"];
+    } else {
+      load = inst["patients"];
+    }
+    return load / cap;
+  }
+
+  var utils = [];
+  for (var ux = 0; ux < raw_insts.length; ux++) {
+    if (raw_insts[ux]["units"] > 0) utils.push(utilization(raw_insts[ux]));
+  }
+  var max_util = utils.length ? Math.max.apply(null, utils) : 1.0;
+  if (max_util <= 0) max_util = 1.0;
+  var current_capacity = total_patients / max_util;
+
+  function one_device_tat(inst, load_per_device) {
+    var m = inst["meta"];
+    var setup = Number(m["wf_setup"] || 0);
+    var maint = Number(m["wf_maint"] || 0);
+    var cal = Number(m["wf_cal"] || 0);
+    var qc = Number(m["wf_qc"] || 0);
+    var ttfr, process;
+    if (m["type"] === "Batch") {
+      ttfr = 0.0;
+      var tubes_per_batch = Number(m["batch_tubes"] || 1);
+      var n_batch = tubes_per_batch ? excel_roundup(inst["tubes"] / tubes_per_batch, 0) : 0;
+      var duration = Number(m["ttfr"] || 0);
+      process = n_batch * (n_batch * duration);
+    } else {
+      ttfr = Number(m["ttfr"] || 0);
+      process = load_per_device * Number(m["process_min"] || 0);
+    }
+    var tat = setup + maint + cal + qc + ttfr + process;
+    return {
+      "setup": setup, "maint": maint, "cal": cal, "qc": qc,
+      "ttfr": ttfr, "process": process, "tat": tat
+    };
+  }
+
+  function load_for_tat(inst) {
+    if (inst["meta"]["type"] === "Singleplex") return inst["tests"];
+    return inst["tubes"];
+  }
+
+  var clocks = [];
+  var testing_current = 0.0;
+  var prep_current = 0.0;
+  for (var ic = 0; ic < raw_insts.length; ic++) {
+    var instc = raw_insts[ic];
+    var load = load_for_tat(instc);
+    var per = instc["units"] ? load / instc["units"] : 0.0;
+    var clk = one_device_tat(instc, per);
+    instc["clock"] = clk;
+    testing_current += (clk["ttfr"] + clk["process"]) * instc["units"];
+    prep_current += (clk["setup"] + clk["maint"] + clk["cal"] + clk["qc"]) * instc["units"];
+    clocks.push(clk);
+  }
+
+  var mq_load_per = mq_units ? total_patients / mq_units : 0.0;
+  var mq_process = mq_load_per * Number(mq["process_min"]);
+  var mq_setup = Number(mq["wf_setup"]);
+  var mq_maint = Number(mq["wf_maint"]);
+  var mq_cal = Number(mq["wf_cal"]);
+  var mq_qc = Number(mq["wf_qc"]);
+  var mq_ttfr = Number(mq["ttfr"]);
+  var mq_tat = mq_setup + mq_maint + mq_cal + mq_qc + mq_ttfr + mq_process;
+  var testing_future = (mq_ttfr + mq_process) * mq_units;
+  var prep_future = (mq_setup + mq_maint + mq_cal + mq_qc) * mq_units;
+
+  function hot_exclusive(insts_or_mq, is_mq) {
+    var total = 0.0;
+    if (is_mq) {
+      var u = mq_units;
+      total += Number(mq["op_startup"]) * u;
+      total += Number(mq["op_analytical"]) * u;
+      total += Number(mq["op_post"]) * u;
+      total += Number(mq["op_qc"]) * u;
+      total += Number(mq["op_maint"]) * u;
+      total += Number(mq["op_cal"]) * u;
+      return total;
+    }
+    for (var hi = 0; hi < insts_or_mq.length; hi++) {
+      var insth = insts_or_mq[hi];
+      var mh = insth["meta"];
+      var uh = insth["units"];
+      total += Number(mh["op_startup"]) * uh;
+      total += Number(mh["op_analytical"]) * uh + insth["reflex_min"];
+      total += Number(mh["op_post"]) * uh;
+      total += Number(mh["op_qc"]) * uh;
+      total += Number(mh["op_maint"]) * uh;
+      total += Number(mh["op_cal"]) * uh;
+    }
+    return total;
+  }
+
+  var days_wk = Number(defaults["working_days_per_week"]);
+  var weeks = Number(defaults["weeks_per_year"]);
+  var n_types = raw_insts.length;
+  var train_cur_h = Number(defaults["training_hours_current"]) * Number(defaults["employees_current"]) * n_types;
+  var train_cur = (train_cur_h / weeks / days_wk) * 60.0;
+  var inv_cur = (Number(defaults["inventory_h_per_week_current"]) / days_wk) * 60.0;
+  var hot_cur = hot_exclusive(raw_insts) + train_cur + inv_cur;
+
+  var train_mq_h = Number(defaults["training_hours_mosaiq"]) * Number(defaults["employees_mosaiq"]) * 1;
+  var train_mq = (train_mq_h / weeks / days_wk) * 60.0;
+  var inv_mq = (Number(defaults["inventory_h_per_week_mosaiq"]) / days_wk) * 60.0;
+  var hot_fut = hot_exclusive(null, true) + train_mq + inv_mq;
+
+  var roles = ["main", "secondary", "third", "fourth"];
+  var processing = {};
+  for (var idx = 0; idx < roles.length; idx++) {
+    var role = roles[idx];
+    if (idx < raw_insts.length) {
+      var instp = raw_insts[idx];
+      processing[role] = {
+        "time_min": excel_round(instp["clock"]["tat"]),
+        "tube_runs": excel_round(instp["tubes"]),
+        "system": instp["system"]
+      };
+    } else {
+      processing[role] = { "time_min": null, "tube_runs": null, "system": null };
+    }
+  }
+  processing["mosaiq"] = {
+    "time_min": excel_round(mq_tat),
+    "tube_runs": excel_round(total_patients),
+    "system": "MosaiQ"
+  };
+
+  var future_setup = mq_max * mq_units;
+
+  var dbg_insts = [];
+  for (var idb = 0; idb < raw_insts.length; idb++) {
+    var i = raw_insts[idb];
+    dbg_insts.push({
+      "system": i["system"],
+      "units": i["units"],
+      "tests": i["tests"],
+      "tubes": i["tubes"],
+      "patients": i["patients"],
+      "util": utilization(i),
+      "tat": i["clock"]["tat"],
+      "process": i["clock"]["process"]
+    });
+  }
+
+  return {
+    "patients_per_day": excel_round(total_patients),
+    "tube_runs_per_day": excel_round(total_tubes),
+    "tests_per_day": excel_round(total_tests),
+    "analysers_current": analysers_current,
+    "analysers_future": mq_units,
+    "testing_time_current": excel_round(testing_current),
+    "testing_time_future": excel_round(testing_future),
+    "preparation_time_current": excel_round(prep_current),
+    "preparation_time_future": excel_round(prep_future),
+    "processing": processing,
+    "hands_on_current": excel_round(hot_cur),
+    "hands_on_future": excel_round(hot_fut),
+    "workload_patients": excel_round(total_patients),
+    "current_capacity": excel_round(current_capacity),
+    "future_setup": excel_round(future_setup),
+    "send_outs": 0,
+    "ifa": 0,
+    "_debug": {
+      "total_tests_raw": total_tests,
+      "total_tubes_raw": total_tubes,
+      "max_util": max_util,
+      "testing_current_raw": testing_current,
+      "prep_current_raw": prep_current,
+      "hot_current_raw": hot_cur,
+      "hot_future_raw": hot_fut,
+      "mq_tat_raw": mq_tat,
+      "mq_units": mq_units,
+      "instruments": dbg_insts
+    }
+  };
+}
+
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = {
+    excel_round: excel_round,
+    excel_roundup: excel_roundup,
+    canon_name: canon_name,
+    _short: _short,
+    _top_n_tubes: _top_n_tubes,
+    resolve_marker_map: resolve_marker_map,
+    calculate: calculate,
+    load_ref: load_ref
+  };
+}
+
+
+var DISEASES = ["CTD", "CD", "VAS", "APS"];
+var ROLES = ["Main", "Secondary", "Third", "Fourth"];
+
+var SCENARIOS = {
+  inovie: {
+    id: 1, name: "Inovie",
+    patients: {CTD: 313, CD: 361, VAS: 104, APS: 92},
+    growth: 0.05,
+    instruments: [
+      {system: "Bioplex 2200", units: 4, reflex_min: 30, reload_min: 0},
+      {system: "Aptiva", units: 2, reflex_min: 20, reload_min: 0},
+      {system: "Phadia 250", units: 1, reflex_min: 0, reload_min: 0}
+    ],
+    routing: {CTD: "BioPlex 2200", CD: "Aptiva", VAS: "BioPlex 2200", APS: "BioPlex 2200"},
+    overrides: {CTD: {"RNA polymerase III": "Phadia 250", DFS70: "Phadia 250"}}
+  },
+  plymouth: {
+    id: 2, name: "Plymouth",
+    patients: {CTD: 17, CD: 82, VAS: 10, APS: 3},
+    growth: 0.1,
+    instruments: [
+      {system: "Phadia 250", units: 2, reflex_min: 18, reload_min: 0},
+      {system: "DS2", units: 1, reflex_min: 0, reload_min: 0},
+      {system: "Euroblotmaster", units: 1, reflex_min: 0, reload_min: 0}
+    ],
+    routing: {CTD: "Euroblotmaster", CD: "Phadia 250", VAS: "Phadia 250", APS: "Phadia 250"},
+    overrides: {CTD: {ANA: "DS2", CCP: "Phadia 250", dsDNA: "Phadia 250"}}
+  },
+  peterborough: {
+    id: 3, name: "Peterborough",
+    patients: {CTD: 53, CD: 60, VAS: 9, APS: 4},
+    growth: 0.22,
+    instruments: [
+      {system: "Phadia", units: 3, reflex_min: 60, reload_min: 10}
+    ],
+    routing: {CTD: "Phadia 250", CD: "Phadia 250", VAS: "Phadia 250", APS: "Phadia 250"},
+    overrides: {}
+  },
+  swansea: {
+    id: 4, name: "Swansea",
+    patients: {CTD: 40, CD: 153, VAS: 10, APS: 16},
+    growth: 0.2,
+    instruments: [
+      {system: "Bio-Flash", units: 2, reflex_min: 10, reload_min: 10},
+      {system: "DS2", units: 1, reflex_min: 5, reload_min: 0}
+    ],
+    routing: {CTD: "Bio-Flash", CD: "DS2", VAS: "Bio-Flash", APS: "Bio-Flash"},
+    overrides: {}
+  }
+};
+
+var EXPECTED = {
+  inovie: {
+    patients_per_day: 870, tube_runs_per_day: 1011, tests_per_day: 2101,
+    analysers: "7 → 2", testing: "1210 → 725", prep: "977 → 179",
+    hot: "515 → 63", workload: 870, capacity: 1219, future: 921,
+    proc: [["Main", 259, 601], ["Secondary", 374, 379], ["Third", 404, 31], ["MosaiQ", 452, 870]]
+  },
+  plymouth: {
+    patients_per_day: 112, tube_runs_per_day: 131, tests_per_day: 184,
+    analysers: "4 → 1", testing: "613 → 136", prep: "643 → 90",
+    hot: "342 → 35", workload: 112, capacity: 153, future: 461,
+    proc: [["Main", 413, 112], ["Secondary", 142, 17], ["Third", 287, 2], ["MosaiQ", 226, 112]]
+  },
+  peterborough: {
+    patients_per_day: 126, tube_runs_per_day: 126, tests_per_day: 289,
+    analysers: "3 → 1", testing: "649 → 146", prep: "663 → 90",
+    hot: "243 → 35", workload: 126, capacity: 129, future: 461,
+    proc: [["Main", 437, 126], ["Secondary", null, null], ["Third", null, null], ["MosaiQ", 236, 126]]
+  },
+  swansea: {
+    patients_per_day: 219, tube_runs_per_day: 219, tests_per_day: 395,
+    analysers: "3 → 1", testing: "380 → 211", prep: "218 → 90",
+    hot: "232 → 35", workload: 219, capacity: 515, future: 461,
+    proc: [["Main", 228, 66], ["Secondary", 142, 153], ["Third", null, null], ["MosaiQ", 301, 219]]
+  }
+};
+
+function instNames() {
+  var names = [];
+  var keys = Object.keys(REF.instruments);
+  for (var i = 0; i < keys.length; i++) {
+    if (keys[i] !== "MosaiQ") names.push(keys[i]);
+  }
+  return names;
+}
+
+function fillSelect(sel, selected) {
+  var names = instNames();
+  var html = '<option value="">—</option>';
+  for (var i = 0; i < names.length; i++) {
+    var n = names[i];
+    var selAttr = (n === selected) ? " selected" : "";
+    html += '<option value="' + n + '"' + selAttr + '>' + n + '</option>';
+  }
+  sel.innerHTML = html;
+  if (selected) sel.value = selected;
+}
+
+function initSelects() {
+  for (var i = 0; i < 4; i++) fillSelect(document.getElementById("sys" + i), "");
+  for (var d = 0; d < DISEASES.length; d++) fillSelect(document.getElementById("route_" + DISEASES[d]), "");
+  var help = [];
+  var diseases = Object.keys(REF.markers);
+  for (var i = 0; i < diseases.length; i++) {
+    var d = diseases[i];
+    var spec = REF.markers[d];
+    var shorts = [];
+    for (var j = 0; j < spec.names.length; j++) shorts.push(_short(spec.names[j]));
+    help.push("<div><strong>" + d + "</strong>: " + shorts.join(", ") + "</div>");
+  }
+  document.getElementById("marker-help").innerHTML = help.join("");
+}
+
+function parseOverrides(text) {
+  var out = {};
+  if (!text) return out;
+  var parts = text.split(",");
+  for (var i = 0; i < parts.length; i++) {
+    var part = parts[i].trim();
+    if (part.indexOf("=") === -1) continue;
+    var idx = part.indexOf("=");
+    var k = part.slice(0, idx).trim();
+    var v = part.slice(idx + 1).trim();
+    out[k] = v;
+  }
+  return out;
+}
+
+function ovText(pairs) {
+  if (!pairs) return "";
+  var keys = Object.keys(pairs);
+  var bits = [];
+  for (var i = 0; i < keys.length; i++) bits.push(keys[i] + "=" + pairs[keys[i]]);
+  return bits.join(", ");
+}
+
+function clearForm() {
+  document.getElementById("preset").value = "";
+  for (var d = 0; d < DISEASES.length; d++) {
+    document.getElementById("p_" + DISEASES[d]).value = "";
+    fillSelect(document.getElementById("route_" + DISEASES[d]), "");
+    document.getElementById("ov_" + DISEASES[d]).value = "";
+  }
+  document.getElementById("growth").value = "10";
+  for (var i = 0; i < 4; i++) {
+    fillSelect(document.getElementById("sys" + i), "");
+    document.getElementById("units" + i).value = "";
+    document.getElementById("reflex" + i).value = "0";
+    document.getElementById("reload" + i).value = "0";
+  }
+  document.getElementById("results").style.display = "none";
+  document.getElementById("results").innerHTML = "";
+}
+
+function fillPreset(name) {
+  var sc = SCENARIOS[name];
+  if (!sc) return;
+  document.getElementById("preset").value = name;
+  for (var d = 0; d < DISEASES.length; d++) {
+    var dis = DISEASES[d];
+    document.getElementById("p_" + dis).value = sc.patients[dis];
+    var dest = sc.routing[dis] ? canon_name(sc.routing[dis]) : "";
+    fillSelect(document.getElementById("route_" + dis), dest);
+    var ov = (sc.overrides && sc.overrides[dis]) ? sc.overrides[dis] : {};
+    document.getElementById("ov_" + dis).value = ovText(ov);
+  }
+  document.getElementById("growth").value = String(Math.round(sc.growth * 100));
+  var insts = sc.instruments.slice();
+  while (insts.length < 4) insts.push({system: "", units: "", reflex_min: 0, reload_min: 0});
+  for (var i = 0; i < 4; i++) {
+    var it = insts[i];
+    var sys = it.system ? canon_name(it.system) : "";
+    fillSelect(document.getElementById("sys" + i), sys);
+    document.getElementById("units" + i).value = (it.units === "" || it.units === undefined || it.units === null) ? "" : it.units;
+    document.getElementById("reflex" + i).value = (it.reflex_min === undefined || it.reflex_min === null) ? 0 : it.reflex_min;
+    document.getElementById("reload" + i).value = (it.reload_min === undefined || it.reload_min === null) ? 0 : it.reload_min;
+  }
+}
+
+function readScenario() {
+  var preset = (document.getElementById("preset").value || "").toLowerCase();
+  var instruments = [];
+  for (var i = 0; i < 4; i++) {
+    var sys = (document.getElementById("sys" + i).value || "").trim();
+    var units = parseInt(Number(document.getElementById("units" + i).value || 0), 10);
+    if (isNaN(units)) units = 0;
+    if (sys && units > 0) {
+      instruments.push({
+        system: sys,
+        units: units,
+        reflex_min: Number(document.getElementById("reflex" + i).value || 0),
+        reload_min: Number(document.getElementById("reload" + i).value || 0)
+      });
+    }
+  }
+  var routing = {};
+  var overrides = {};
+  var patients = {};
+  for (var d = 0; d < DISEASES.length; d++) {
+    var dis = DISEASES[d];
+    patients[dis] = Number(document.getElementById("p_" + dis).value || 0);
+    var r = (document.getElementById("route_" + dis).value || "").trim();
+    if (r) routing[dis] = r;
+    var ov = parseOverrides(document.getElementById("ov_" + dis).value || "");
+    if (Object.keys(ov).length) overrides[dis] = ov;
+  }
+  return {
+    name: preset ? (preset.charAt(0).toUpperCase() + preset.slice(1)) : "Custom",
+    patients: patients,
+    growth: Number(document.getElementById("growth").value || 0) / 100.0,
+    instruments: instruments,
+    routing: routing,
+    overrides: overrides
+  };
+}
+
+function td(val, exp) {
+  if (exp === undefined || exp === null && arguments.length < 2) {
+    return '<td class="num">' + val + '</td><td></td>';
+  }
+  if (arguments.length < 2 || exp === undefined) {
+    return '<td class="num">' + val + '</td><td></td>';
+  }
+  var cls = (val === exp) ? "ok" : "bad";
+  return '<td class="num ' + cls + '">' + val + '</td><td class="num">' + exp + '</td>';
+}
+
+function row(label, val, ev) {
+  if (ev === undefined) return "<tr><td>" + label + "</td>" + '<td class="num">' + val + "</td><td></td></tr>";
+  return "<tr><td>" + label + "</td>" + td(val, ev) + "</tr>";
+}
+
+function renderResults(out, preset) {
+  var exp = EXPECTED[preset] || null;
+  var a = String(out.analysers_current) + " → " + String(out.analysers_future);
+  var t = String(out.testing_time_current) + " → " + String(out.testing_time_future);
+  var p = String(out.preparation_time_current) + " → " + String(out.preparation_time_future);
+  var h = String(out.hands_on_current) + " → " + String(out.hands_on_future);
+  var exp_h = exp ? "<th>Excel</th>" : "<th></th>";
+
+  function r(label, val, ekey) {
+    var ev = (exp && ekey) ? exp[ekey] : undefined;
+    if (exp && ekey) return row(label, val, ev);
+    return row(label, val);
+  }
+
+  var exp_map = {};
+  if (exp) {
+    for (var i = 0; i < exp.proc.length; i++) {
+      exp_map[exp.proc[i][0]] = [exp.proc[i][1], exp.proc[i][2]];
+    }
+  }
+  var proc_rows = [];
+  var keys = [["main", "Main"], ["secondary", "Secondary"], ["third", "Third"], ["mosaiq", "MosaiQ"]];
+  for (var k = 0; k < keys.length; k++) {
+    var key = keys[k][0];
+    var label = keys[k][1];
+    var block = out.processing[key];
+    var tm = block.time_min;
+    var tr = block.tube_runs;
+    var show_t = (tm === null || tm === undefined) ? "—" : tm;
+    var show_r = (tr === null || tr === undefined) ? "—" : tr;
+    var e = exp_map[label];
+    if (e) {
+      var et = (e[0] === null || e[0] === undefined) ? "—" : e[0];
+      var er = (e[1] === null || e[1] === undefined) ? "—" : e[1];
+      var ok = (show_t === et) && (show_r === er);
+      var cls = ok ? "ok" : "bad";
+      proc_rows.push(
+        "<tr><td>" + label + "</td><td class=\"num " + cls + "\">" + show_t + "</td>" +
+        "<td class=\"num " + cls + "\">" + show_r + "</td>" +
+        "<td class=num>" + et + "</td><td class=num>" + er + "</td></tr>"
+      );
+    } else {
+      proc_rows.push(
+        "<tr><td>" + label + "</td><td class=num>" + show_t + "</td>" +
+        "<td class=num>" + show_r + "</td><td></td><td></td></tr>"
+      );
+    }
+  }
+
+  var procHead = exp ? "<th>Excel time</th><th>Excel tubes</th>" : "<th></th><th></th>";
+  var html = ""
+    + '<div class="card"><h2>Volume</h2><table><tr><th>Metric</th><th>Engine</th>' + exp_h + "</tr>"
+    + r("Patients / day", out.patients_per_day, "patients_per_day")
+    + r("Tube runs / day", out.tube_runs_per_day, "tube_runs_per_day")
+    + r("Tests / day", out.tests_per_day, "tests_per_day")
+    + "</table></div>"
+    + '<div class="card"><h2>A–D drivers</h2><table><tr><th>Driver</th><th>Engine</th>' + exp_h + "</tr>"
+    + r("A Analysers (current → MosaiQ)", a, "analysers")
+    + r("C Testing time (min)", t, "testing")
+    + r("C Preparation time (min)", p, "prep")
+    + r("B Hands-on (min, incl. training + inventory)", h, "hot")
+    + r("D Current workload (patients)", out.workload_patients, "workload")
+    + r("D Current capacity (patients)", out.current_capacity, "capacity")
+    + r("D Future setup (MosaiQ patients)", out.future_setup, "future")
+    + r("F Send-outs", 0)
+    + r("G IFA", 0)
+    + "</table></div>"
+    + '<div class="card"><h2>C Processing time (one-device TAT) and tube runs</h2>'
+    + "<table><tr><th></th><th>Time (min)</th><th>Tube runs</th>" + procHead + "</tr>"
+    + proc_rows.join("") + "</table></div>"
+    + "<footer>Green matches the Excel golden integer. Hands-on is the inclusive C_Charts stack. Reload is not applied (Excel quirk).</footer>";
+
+  var box = document.getElementById("results");
+  box.innerHTML = html;
+  box.style.display = "block";
+  box.scrollIntoView({behavior: "smooth", block: "start"});
+}
+
+function doCalculate() {
+  var scenario = readScenario();
+  var out = calculate(scenario);
+  var preset = (document.getElementById("preset").value || "").toLowerCase();
+  renderResults(out, preset);
+}
+
+function applyPreset(name) {
+  fillPreset(name);
+  doCalculate();
+}
+
+document.addEventListener("DOMContentLoaded", function () {
+  initSelects();
+  document.getElementById("preset-inovie").addEventListener("click", function (e) { e.preventDefault(); applyPreset("inovie"); });
+  document.getElementById("preset-plymouth").addEventListener("click", function (e) { e.preventDefault(); applyPreset("plymouth"); });
+  document.getElementById("preset-peterborough").addEventListener("click", function (e) { e.preventDefault(); applyPreset("peterborough"); });
+  document.getElementById("preset-swansea").addEventListener("click", function (e) { e.preventDefault(); applyPreset("swansea"); });
+  document.getElementById("preset-clear").addEventListener("click", function (e) { e.preventDefault(); clearForm(); });
+  document.getElementById("btn-calc").addEventListener("click", function (e) { e.preventDefault(); doCalculate(); });
+});
+</script>
+</body>
+</html>
